@@ -16,6 +16,55 @@ class TenderRepository extends ServiceEntityRepository
         parent::__construct($registry, Tender::class);
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function findTendersWithFilters(array $filters): array
+    {
+        $queryBuilder = $this->createQueryBuilder('t')
+            ->select('t.id, t.externalCode, t.number, t.status, t.name, t.date, t.createdAt, t.updatedAt');
+
+        if (!empty($filters['externalCode'])) {
+            $queryBuilder->andWhere('t.externalCode = :externalCode')
+                ->setParameter('externalCode', $filters['externalCode']);
+        }
+
+        if (!empty($filters['number'])) {
+            $queryBuilder->andWhere('t.number LIKE :number')
+                ->setParameter('number', '%' . $filters['number'] . '%');
+        }
+
+        if (!empty($filters['status'])) {
+            $queryBuilder->andWhere('t.status LIKE :status')
+                ->setParameter('status', '%' . $filters['status'] . '%');
+        }
+
+        if (!empty($filters['name'])) {
+            $queryBuilder->andWhere('t.name LIKE :name')
+                ->setParameter('name', '%' . $filters['name'] . '%');
+        }
+
+        if (!empty($filters['date'])) {
+            try {
+                $date = new \DateTime($filters['date']);
+                $queryBuilder->andWhere('t.date = :date')
+                    ->setParameter('date', $date);
+            } catch (\Exception $e) {
+            }
+        }
+
+        return $queryBuilder->getQuery()->getResult();
+    }
+
+    /**
+     * @param int $externalCode
+     * @param string $number
+     * @param string $status
+     * @param string $name
+     * @param \DateTime $date
+     * @return Tender|null
+     */
     public function findOneByAllFields(int $externalCode, string $number, string $status, string $name, \DateTime $date): ?Tender
     {
         return $this->createQueryBuilder('t')
@@ -31,57 +80,5 @@ class TenderRepository extends ServiceEntityRepository
             ->setParameter('date', $date)
             ->getQuery()
             ->getOneOrNullResult();
-    }
-
-    /**
-     * Finds tenders with optional filters and returns data in array format.
-     *
-     * @param array $filters Associative array of filters (e.g., ['status' => 'Закрыто', 'name' => 'посуда'])
-     * @return array
-     */
-    public function findTendersWithFilters(array $filters = []): array
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->select([
-                't.id',
-                't.externalCode',
-                't.number',
-                't.status',
-                't.name',
-                // Форматируем дату прямо в запросе (зависит от СУБД)
-                "DATE_FORMAT(t.date, '%Y-%m-%d') as date"
-            ]);
-
-        if (!empty($filters['externalCode'])) {
-            $qb->andWhere('t.externalCode = :externalCode')
-                ->setParameter('externalCode', (int)$filters['externalCode']);
-        }
-
-        if (!empty($filters['number'])) {
-            $qb->andWhere('t.number LIKE :number')
-                ->setParameter('number', '%' . $filters['number'] . '%');
-        }
-
-        if (!empty($filters['status'])) {
-            $qb->andWhere('t.status = :status')
-                ->setParameter('status', $filters['status']);
-        }
-
-        if (!empty($filters['name'])) {
-            $qb->andWhere('t.name LIKE :name')
-                ->setParameter('name', '%' . $filters['name'] . '%');
-        }
-
-        if (!empty($filters['date'])) {
-            $date = \DateTime::createFromFormat('Y-m-d', $filters['date']);
-            if ($date !== false) {
-                $qb->andWhere('t.date >= :dateStart')
-                    ->andWhere('t.date < :dateEnd')
-                    ->setParameter('dateStart', $date->setTime(0, 0, 0))
-                    ->setParameter('dateEnd', $date->modify('+1 day')->setTime(0, 0, 0));
-            }
-        }
-
-        return $qb->getQuery()->getArrayResult();
     }
 }

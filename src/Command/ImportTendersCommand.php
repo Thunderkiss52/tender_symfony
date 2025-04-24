@@ -173,6 +173,10 @@ class ImportTendersCommand extends Command
                 continue;
             }
 
+            $now = new \DateTime();
+            $tender->setCreatedAt($now);
+            $tender->setUpdatedAt($now);
+
             $this->entityManager->persist($tender);
             $successCount++;
         }
